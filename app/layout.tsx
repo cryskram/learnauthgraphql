@@ -6,8 +6,8 @@ import { Provider } from "./provider";
 const font = Space_Grotesk({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "Auth + GraphQL + Mongo",
-  description: "Learning auth auth graphql",
+  title: "ImageSpam",
+  description: "Fun little image storage",
 };
 
 export default function RootLayout({
