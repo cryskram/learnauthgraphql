@@ -3,11 +3,16 @@
 import { storage } from "@/lib/firebase";
 import { CREATE_ITEM, DELETE_ITEM, GET_ITEMS } from "@/lib/operation";
 import { useMutation, useQuery } from "@apollo/client";
-import { getDownloadURL, ref, uploadBytes } from "firebase/storage";
+import {
+  deleteObject,
+  getDownloadURL,
+  ref,
+  uploadBytes,
+} from "firebase/storage";
 import { signIn, signOut, useSession } from "next-auth/react";
 import Image from "next/image";
 import Link from "next/link";
-import { ChangeEvent, useState } from "react";
+import { ChangeEvent, useRef, useState } from "react";
 import toast from "react-hot-toast";
 
 export default function Homepage() {
@@ -23,6 +28,7 @@ export default function Homepage() {
   const [wait, setWait] = useState(false);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const handleCreate = async () => {
     if (!name.trim() || !imageUrl.trim()) {
@@ -42,6 +48,12 @@ export default function Homepage() {
           refetch();
         },
       });
+      setImagePreview("");
+      setName("");
+      setDescription("");
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
     } catch (error) {
       console.log("Error occured:", error);
     } finally {
@@ -49,8 +61,17 @@ export default function Homepage() {
     }
   };
 
-  const handleDelete = async (id: string) => {
+  const handleDelete = async (id: string, imageUrl: string) => {
     try {
+      const pathMatch = imageUrl.match(/\/o\/(.*?)\?/);
+      const encodedPath = pathMatch?.[1];
+      if (!encodedPath) throw new Error("Invalid image URL format");
+
+      const decodedPath = decodeURIComponent(encodedPath);
+      const imgRef = ref(storage, decodedPath);
+
+      await deleteObject(imgRef);
+
       await deleteItem({
         variables: { id },
         onCompleted: (data) => {
@@ -141,6 +162,7 @@ export default function Homepage() {
               /> */}
 
             <input
+              ref={fileInputRef}
               type="file"
               accept="image/*"
               onChange={handleImage}
@@ -192,7 +214,7 @@ export default function Homepage() {
                 </div>
                 {session?.user.role === "REG" && (
                   <button
-                    onClick={() => handleDelete(item.id)}
+                    onClick={() => handleDelete(item.id, item.imageUrl)}
                     className="px-4 py-2 bg-slate-100 cursor-pointer rounded-2xl"
                   >
                     Delete
