@@ -212,7 +212,7 @@ export default function Homepage() {
                     alt="image"
                   />
                 </div>
-                {session?.user.role === "REG" && (
+                {session?.user.role === "ADMIN" && (
                   <button
                     onClick={() => handleDelete(item.id, item.imageUrl)}
                     className="px-4 py-2 bg-slate-100 cursor-pointer rounded-2xl"
