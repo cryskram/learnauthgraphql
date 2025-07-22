@@ -7,6 +7,7 @@ export const GET_ITEMS = gql`
       name
       description
       imageUrl
+      userId
     }
   }
 `;
@@ -16,12 +17,19 @@ export const CREATE_ITEM = gql`
     $name: String!
     $description: String
     $imageUrl: String!
+    $userId: String!
   ) {
-    createItem(name: $name, description: $description, imageUrl: $imageUrl) {
+    createItem(
+      name: $name
+      description: $description
+      imageUrl: $imageUrl
+      userId: $userId
+    ) {
       id
       name
       description
       imageUrl
+      userId
     }
   }
 `;

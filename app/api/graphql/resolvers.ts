@@ -8,6 +8,11 @@ export const resolvers = {
     item: async (_: any, { id }: { id: string }) => {
       return await prisma.item.findUnique({ where: { id } });
     },
+    users: async () => {
+      return await prisma.user.findMany({
+        include: { items: true },
+      });
+    },
   },
 
   Mutation: {
@@ -17,13 +22,15 @@ export const resolvers = {
         name,
         description,
         imageUrl,
-      }: { name: string; description: string; imageUrl: string }
+        userId,
+      }: { name: string; description: string; imageUrl: string; userId: string }
     ) => {
       const item = await prisma.item.create({
         data: {
           name,
           description,
           imageUrl,
+          userId,
         },
       });
 

@@ -19,6 +19,7 @@ model User {
   accounts      Account[]
   sessions      Session[]
   Authenticator Authenticator[]
+  items         Item[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -66,7 +67,6 @@ model VerificationToken {
   @@unique([identifier, token])
 }
 
-// Optional for WebAuthn support
 model Authenticator {
   credentialID         String  @id @map("_id")
   userId               String  @db.ObjectId
@@ -88,6 +88,8 @@ model Item {
   description String?
   imageUrl    String
   createdAt   DateTime @default(now())
+  user        User     @relation(fields: [userId], references: [id])
+  userId      String   @db.ObjectId
 }
 
 enum Role {

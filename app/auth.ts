@@ -11,6 +11,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       if (session.user) {
         session.user.id = user.id;
         session.user.role = user.role;
+        session.user.items = user.items;
       }
 
       return session;

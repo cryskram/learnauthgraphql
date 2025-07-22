@@ -11,7 +11,6 @@ import {
 } from "firebase/storage";
 import { signIn, signOut, useSession } from "next-auth/react";
 import Image from "next/image";
-import Link from "next/link";
 import { ChangeEvent, useRef, useState } from "react";
 import toast from "react-hot-toast";
 
@@ -42,6 +41,7 @@ export default function Homepage() {
           name,
           description,
           imageUrl,
+          userId: session?.user.id,
         },
         onCompleted: (data) => {
           toast.success(`Created ${data.createItem.name}`);
@@ -108,7 +108,9 @@ export default function Homepage() {
   return (
     <div className="max-w-4xl mx-auto py-4 px-4">
       <div className="flex justify-between items-center mb-10">
-        <h1 className="text-4xl text-center">GraphQL + Auth</h1>
+        <h1 className="text-4xl text-center">
+          Image<span className="bg-black text-white px-1 rounded">Spam</span>
+        </h1>
         {session?.user ? (
           <div className="flex items-center gap-4">
             <Image
@@ -120,7 +122,7 @@ export default function Homepage() {
             />
             <button
               onClick={() => signOut()}
-              className="bg-red-500 text-white px-4 py-2 rounded-2xl"
+              className="bg-red-500 text-white px-4 py-2 rounded"
             >
               Logout
             </button>
@@ -128,15 +130,16 @@ export default function Homepage() {
         ) : (
           <button
             onClick={() => signIn("github")}
-            className="p-2 bg-green-700 text-white rounded-2xl text-xl"
+            className="p-2 bg-black text-white rounded text-xl"
           >
             Login
           </button>
         )}
       </div>
-      {status === "unauthenticated" && <h1>Please login to create items</h1>}
+      {status === "unauthenticated" && (
+        <h1 className="text-xl text-center">Please login to manage items</h1>
+      )}
       <div>
-        {/* <h1 className="max-w-5xl">{JSON.stringify(session)}</h1> */}
         {status === "authenticated" && (
           <div className="flex flex-col gap-2">
             <input
@@ -153,14 +156,6 @@ export default function Homepage() {
               value={description}
               onChange={(e) => setDescription(e.target.value)}
             />
-            {/* <input
-                className="bg-slate-200 rounded-lg p-2"
-                type="text"
-                placeholder="Image Url"
-                value={imageUrl}
-                onChange={(e) => setImageUrl(e.target.value)}
-              /> */}
-
             <input
               ref={fileInputRef}
               type="file"
@@ -170,8 +165,7 @@ export default function Homepage() {
              file:mr-4 file:py-2 file:px-4
              file:rounded-full file:border-0
              file:text-sm file:font-semibold
-             file:bg-blue-50 file:text-blue-700
-             hover:file:bg-blue-100"
+             file:bg-black file:text-white cursor-pointer"
             />
             {imagePreview && (
               <Image
@@ -183,10 +177,10 @@ export default function Homepage() {
             )}
             <button
               onClick={handleCreate}
-              className="bg-slate-900 text-white px-4 py-2 rounded-2xl disabled:bg-slate-700"
+              className="bg-slate-900 text-white px-4 py-2 rounded-lg text-lg disabled:bg-slate-700"
               disabled={wait || uploading}
             >
-              {uploading || wait ? "Uploading..." : "Submit"}
+              {uploading || wait ? "Uploading..." : "Create"}
             </button>
           </div>
         )}
@@ -194,28 +188,33 @@ export default function Homepage() {
         {error && <p>Error occured: {error.message}</p>}
 
         {data?.items?.length > 0 ? (
-          <div className="mt-10">
+          <div className="mt-10 grid md:grid-cols-2 gap-6">
             {data?.items?.map((item: any) => (
               <div
-                className="p-4 bg-slate-300 m-2 rounded-2xl flex items-center justify-between"
                 key={item.id}
+                className="bg-slate-100 rounded-2xl shadow-md hover:shadow-lg transition-shadow duration-300 p-6 flex flex-col justify-between"
               >
-                <div className="flex flex-col">
-                  <h1 className="text-3xl font-bold">{item.name}</h1>
-                  <p className="text-slate-600">{item.description}</p>
-                  {/* <Link href={item.imageUrl}>{item.imageUrl}</Link> */}
+                <div className="flex flex-col items-center">
+                  <h1 className="text-2xl font-semibold text-gray-800 mb-2 text-center">
+                    {item.name}
+                  </h1>
+                  <p className="text-gray-600 text-center mb-4">
+                    {item.description}
+                  </p>
                   <Image
-                    className="mt-6"
                     src={item.imageUrl}
                     width={250}
-                    height={500}
-                    alt="image"
+                    height={250}
+                    alt={item.name}
+                    className="rounded-xl object-cover shadow-sm"
                   />
                 </div>
-                {session?.user.role === "ADMIN" && (
+
+                {(session?.user.role === "ADMIN" ||
+                  session?.user.id === item.userId) && (
                   <button
                     onClick={() => handleDelete(item.id, item.imageUrl)}
-                    className="px-4 py-2 bg-slate-100 cursor-pointer rounded-2xl"
+                    className="mt-6 w-full bg-red-500 hover:bg-red-600 text-white font-medium py-2 rounded-lg text-lg transition-colors"
                   >
                     Delete
                   </button>
@@ -224,7 +223,7 @@ export default function Homepage() {
             ))}
           </div>
         ) : (
-          <p>no items</p>
+          <p className="mt-8">No Items currently</p>
         )}
       </div>
     </div>
