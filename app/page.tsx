@@ -1,9 +1,12 @@
 "use client";
 
+import { storage } from "@/lib/firebase";
 import { CREATE_ITEM, DELETE_ITEM, GET_ITEMS } from "@/lib/operation";
 import { useMutation, useQuery } from "@apollo/client";
+import { getDownloadURL, ref, uploadBytes } from "firebase/storage";
 import { signIn, signOut, useSession } from "next-auth/react";
 import Image from "next/image";
+import Link from "next/link";
 import { ChangeEvent, useState } from "react";
 import toast from "react-hot-toast";
 
@@ -14,12 +17,12 @@ export default function Homepage() {
   const [deleteItem] = useMutation(DELETE_ITEM);
   const [createItem] = useMutation(CREATE_ITEM);
 
-  const [isNew, setIsNew] = useState(false);
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [imageUrl, setImageUrl] = useState("");
   const [wait, setWait] = useState(false);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
 
   const handleCreate = async () => {
     if (!name.trim() || !imageUrl.trim()) {
@@ -61,11 +64,23 @@ export default function Homepage() {
     }
   };
 
-  const handleImage = (e: ChangeEvent<HTMLInputElement>) => {
+  const handleImage = async (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      const url = URL.createObjectURL(file);
-      setImagePreview(url);
+      setUploading(true);
+      setImagePreview(URL.createObjectURL(file));
+      const storageRef = ref(storage, `items/${Date.now()}_${file.name}`);
+      try {
+        const snapshot = await uploadBytes(storageRef, file);
+        const downloadUrl = await getDownloadURL(snapshot.ref);
+        setImageUrl(downloadUrl);
+        toast.success("Image uploaded");
+      } catch (error) {
+        console.error("Image upload error:", error);
+        toast.error("Image upload failed");
+      } finally {
+        setUploading(false);
+      }
     }
   };
 
@@ -83,12 +98,6 @@ export default function Homepage() {
               alt="logo"
             />
             <button
-              onClick={() => setIsNew(true)}
-              className="bg-slate-900 text-white px-4 py-2 rounded-2xl"
-            >
-              Create
-            </button>
-            <button
               onClick={() => signOut()}
               className="bg-red-500 text-white px-4 py-2 rounded-2xl"
             >
@@ -104,30 +113,26 @@ export default function Homepage() {
           </button>
         )}
       </div>
-      {status === "unauthenticated" ? (
-        <div>
-          <h1>Please login to create items</h1>
-        </div>
-      ) : (
-        <div>
-          {/* <h1 className="max-w-5xl">{JSON.stringify(session)}</h1> */}
-          {isNew && (
-            <div className="flex flex-col gap-2">
-              <input
-                className="bg-slate-200 rounded-lg p-2"
-                type="text"
-                placeholder="Name"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-              />
-              <input
-                className="bg-slate-200 rounded-lg p-2"
-                type="text"
-                placeholder="Description"
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-              />
-              {/* <input
+      {status === "unauthenticated" && <h1>Please login to create items</h1>}
+      <div>
+        {/* <h1 className="max-w-5xl">{JSON.stringify(session)}</h1> */}
+        {status === "authenticated" && (
+          <div className="flex flex-col gap-2">
+            <input
+              className="bg-slate-200 rounded-lg p-2"
+              type="text"
+              placeholder="Name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+            />
+            <input
+              className="bg-slate-200 rounded-lg p-2"
+              type="text"
+              placeholder="Description"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+            />
+            {/* <input
                 className="bg-slate-200 rounded-lg p-2"
                 type="text"
                 placeholder="Image Url"
@@ -135,64 +140,71 @@ export default function Homepage() {
                 onChange={(e) => setImageUrl(e.target.value)}
               /> */}
 
-              <input
-                type="file"
-                accept="image/*"
-                onChange={handleImage}
-                className="block w-full text-sm text-gray-500
+            <input
+              type="file"
+              accept="image/*"
+              onChange={handleImage}
+              className="block w-full text-sm text-gray-500
              file:mr-4 file:py-2 file:px-4
              file:rounded-full file:border-0
              file:text-sm file:font-semibold
              file:bg-blue-50 file:text-blue-700
              hover:file:bg-blue-100"
+            />
+            {imagePreview && (
+              <Image
+                src={imagePreview}
+                width={500}
+                height={500}
+                alt="uploaded image"
               />
-              {imagePreview && (
-                <Image
-                  src={imagePreview}
-                  width={500}
-                  height={500}
-                  alt="uploaded image"
-                />
-              )}
-              <button
-                onClick={handleCreate}
-                className="bg-slate-900 text-white px-4 py-2 rounded-2xl"
-                disabled={wait}
-              >
-                Submit
-              </button>
-            </div>
-          )}
-          {loading && <p>loading...</p>}
-          {error && <p>Error occured: {error.message}</p>}
+            )}
+            <button
+              onClick={handleCreate}
+              className="bg-slate-900 text-white px-4 py-2 rounded-2xl disabled:bg-slate-700"
+              disabled={wait || uploading}
+            >
+              {uploading || wait ? "Uploading..." : "Submit"}
+            </button>
+          </div>
+        )}
+        {loading && <p>loading...</p>}
+        {error && <p>Error occured: {error.message}</p>}
 
-          {data?.items?.length > 0 ? (
-            <div className="mt-10">
-              {data?.items?.map((item: any) => (
-                <div
-                  className="p-4 bg-slate-300 m-2 rounded-2xl flex items-center justify-between"
-                  key={item.id}
-                >
-                  <div className="flex flex-col">
-                    <h1>{item.name}</h1>
-                    <p>{item.description}</p>
-                  </div>
-                  {session?.user.role === "REG" && (
-                    <button
-                      onClick={() => handleDelete(item.id)}
-                      className="px-4 py-2 bg-slate-100 cursor-pointer rounded-2xl"
-                    >
-                      Delete
-                    </button>
-                  )}
+        {data?.items?.length > 0 ? (
+          <div className="mt-10">
+            {data?.items?.map((item: any) => (
+              <div
+                className="p-4 bg-slate-300 m-2 rounded-2xl flex items-center justify-between"
+                key={item.id}
+              >
+                <div className="flex flex-col">
+                  <h1 className="text-3xl font-bold">{item.name}</h1>
+                  <p className="text-slate-600">{item.description}</p>
+                  {/* <Link href={item.imageUrl}>{item.imageUrl}</Link> */}
+                  <Image
+                    className="mt-6"
+                    src={item.imageUrl}
+                    width={250}
+                    height={500}
+                    alt="image"
+                  />
                 </div>
-              ))}
-            </div>
-          ) : (
-            <p>no items</p>
-          )}
-        </div>
-      )}
+                {session?.user.role === "REG" && (
+                  <button
+                    onClick={() => handleDelete(item.id)}
+                    className="px-4 py-2 bg-slate-100 cursor-pointer rounded-2xl"
+                  >
+                    Delete
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p>no items</p>
+        )}
+      </div>
     </div>
   );
 }
