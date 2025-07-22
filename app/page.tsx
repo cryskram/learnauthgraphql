@@ -1,103 +1,198 @@
+"use client";
+
+import { CREATE_ITEM, DELETE_ITEM, GET_ITEMS } from "@/lib/operation";
+import { useMutation, useQuery } from "@apollo/client";
+import { signIn, signOut, useSession } from "next-auth/react";
 import Image from "next/image";
+import { ChangeEvent, useState } from "react";
+import toast from "react-hot-toast";
 
-export default function Home() {
+export default function Homepage() {
+  const { data: session, status } = useSession();
+
+  const { data, loading, error, refetch } = useQuery(GET_ITEMS);
+  const [deleteItem] = useMutation(DELETE_ITEM);
+  const [createItem] = useMutation(CREATE_ITEM);
+
+  const [isNew, setIsNew] = useState(false);
+  const [name, setName] = useState("");
+  const [description, setDescription] = useState("");
+  const [imageUrl, setImageUrl] = useState("");
+  const [wait, setWait] = useState(false);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+
+  const handleCreate = async () => {
+    if (!name.trim() || !imageUrl.trim()) {
+      return alert("Please enter name and imageUrl");
+    }
+
+    try {
+      setWait(true);
+      await createItem({
+        variables: {
+          name,
+          description,
+          imageUrl,
+        },
+        onCompleted: (data) => {
+          toast.success(`Created ${data.createItem.name}`);
+          refetch();
+        },
+      });
+    } catch (error) {
+      console.log("Error occured:", error);
+    } finally {
+      setWait(false);
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    try {
+      await deleteItem({
+        variables: { id },
+        onCompleted: (data) => {
+          console.log(data);
+          toast.success(`Deleted ${data.deleteItem.name}`);
+        },
+      });
+      refetch();
+    } catch (e) {
+      console.error("Error deleting the item:", e);
+    }
+  };
+
+  const handleImage = (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const url = URL.createObjectURL(file);
+      setImagePreview(url);
+    }
+  };
+
   return (
-    <div className="font-sans grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="font-mono list-inside list-decimal text-sm/6 text-center sm:text-left">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] font-mono font-semibold px-1 py-0.5 rounded">
-              app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
-
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
+    <div className="max-w-4xl mx-auto py-4 px-4">
+      <div className="flex justify-between items-center mb-10">
+        <h1 className="text-4xl text-center">GraphQL + Auth</h1>
+        {session?.user ? (
+          <div className="flex items-center gap-4">
             <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
+              className="rounded-full"
+              src={session.user?.image as string}
+              width={48}
+              height={48}
+              alt="logo"
             />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+            <button
+              onClick={() => setIsNew(true)}
+              className="bg-slate-900 text-white px-4 py-2 rounded-2xl"
+            >
+              Create
+            </button>
+            <button
+              onClick={() => signOut()}
+              className="bg-red-500 text-white px-4 py-2 rounded-2xl"
+            >
+              Logout
+            </button>
+          </div>
+        ) : (
+          <button
+            onClick={() => signIn("github")}
+            className="p-2 bg-green-700 text-white rounded-2xl text-xl"
           >
-            Read our docs
-          </a>
+            Login
+          </button>
+        )}
+      </div>
+      {status === "unauthenticated" ? (
+        <div>
+          <h1>Please login to create items</h1>
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
+      ) : (
+        <div>
+          {/* <h1 className="max-w-5xl">{JSON.stringify(session)}</h1> */}
+          {isNew && (
+            <div className="flex flex-col gap-2">
+              <input
+                className="bg-slate-200 rounded-lg p-2"
+                type="text"
+                placeholder="Name"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+              />
+              <input
+                className="bg-slate-200 rounded-lg p-2"
+                type="text"
+                placeholder="Description"
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+              />
+              {/* <input
+                className="bg-slate-200 rounded-lg p-2"
+                type="text"
+                placeholder="Image Url"
+                value={imageUrl}
+                onChange={(e) => setImageUrl(e.target.value)}
+              /> */}
+
+              <input
+                type="file"
+                accept="image/*"
+                onChange={handleImage}
+                className="block w-full text-sm text-gray-500
+             file:mr-4 file:py-2 file:px-4
+             file:rounded-full file:border-0
+             file:text-sm file:font-semibold
+             file:bg-blue-50 file:text-blue-700
+             hover:file:bg-blue-100"
+              />
+              {imagePreview && (
+                <Image
+                  src={imagePreview}
+                  width={500}
+                  height={500}
+                  alt="uploaded image"
+                />
+              )}
+              <button
+                onClick={handleCreate}
+                className="bg-slate-900 text-white px-4 py-2 rounded-2xl"
+                disabled={wait}
+              >
+                Submit
+              </button>
+            </div>
+          )}
+          {loading && <p>loading...</p>}
+          {error && <p>Error occured: {error.message}</p>}
+
+          {data?.items?.length > 0 ? (
+            <div className="mt-10">
+              {data?.items?.map((item: any) => (
+                <div
+                  className="p-4 bg-slate-300 m-2 rounded-2xl flex items-center justify-between"
+                  key={item.id}
+                >
+                  <div className="flex flex-col">
+                    <h1>{item.name}</h1>
+                    <p>{item.description}</p>
+                  </div>
+                  {session?.user.role === "REG" && (
+                    <button
+                      onClick={() => handleDelete(item.id)}
+                      className="px-4 py-2 bg-slate-100 cursor-pointer rounded-2xl"
+                    >
+                      Delete
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p>no items</p>
+          )}
+        </div>
+      )}
     </div>
   );
 }
